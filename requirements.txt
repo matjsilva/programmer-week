@@ -1,2 +1,2 @@
-PyGithub 1.55
-discord.py 1.7.3
+PyGithub
+discord.py
