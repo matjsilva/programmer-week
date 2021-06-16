@@ -1,9 +1,10 @@
 import discord, asyncio, os, json
+from discord import embeds
 from github import *
 from discord.ext import commands
 from datetime import date, datetime
 
-client = commands.Bot(command_prefix = 'p?', case_insensitive=True)
+client = commands.Bot(command_prefix = 'p?', case_insensitive=True, help_command=None)
 
 usersAllowed = [308008129939898378, 842718415403483166]
 usersAllowedFormated = []
@@ -61,7 +62,7 @@ def rankCheck():
             else: 
                 pass
     except:
-        print(f"O usuário {player} não existe.")
+        print(f"O usuário {dataPlayer[player]['discord']} não existe, ou o usuário {dataPlayer[player]['github']} não existe.")
 
     finalRanking = dict(sorted(data['pointRanking'].items(), reverse=True, key=lambda item: item[1]))
     if len(data['pointRanking'].items()) >= 3:
@@ -83,11 +84,11 @@ def rankCheck():
                             if dataPlayer[playerFixToo]['titles'] in data['titles']['Amador']:
                                 dataPlayer[playerFixToo]['title'] = 'Amador'
                             elif dataPlayer[playerFixToo]['titles'] in data['titles']['Experiente']:
-                                dataPlayer[playerFixToo]['title'] = 'Amador'
+                                dataPlayer[playerFixToo]['title'] = 'Experiente'
                             elif dataPlayer[playerFixToo]['titles'] in data['titles']['Campeão']:
-                                dataPlayer[playerFixToo]['title'] = 'Amador'
+                                dataPlayer[playerFixToo]['title'] = 'Campeão'
                             elif dataPlayer[playerFixToo]['titles'] > data['titles']['Lenda']:
-                                dataPlayer[playerFixToo]['title'] = 'Amador'
+                                dataPlayer[playerFixToo]['title'] = 'Lenda'
                 data['ranking'][i] = dataPlayer[player]['github']
             dataPlayer[player]['hasVerifiedThisWeek'] = 1
             i += 1
@@ -107,21 +108,122 @@ async def ping(ctx):
     await ctx.send("pong! :sunglasses:")
 
 @client.command()
-async def ajuda(ctx, comando=""):
+async def help(ctx, comando=""):
+    defaultEmbed = discord.Embed(
+        name="Ajuda **Semana do Programador**",
+        description = "Lista de comandos do Bot!"
+    )
+    defaultEmbed.add_field(name="p?entrar", value="Use para entrar na **Semana do Programador**.", inline=False)
+    defaultEmbed.add_field(name="p?rank", value="Use para ver a Leaderboard da semana.", inline=False)
+    defaultEmbed.add_field(name="p?perfil @usuario (obrigatório)", value="Use para ver o seu perfil ou o perfil de outra pessoa", inline=False)
+    defaultEmbed.add_field(name="p?ligas", value="Use para ver os usuários com maior rank do servidor!", inline=False)
+    defaultEmbed.add_field(name="p?help ranks", value="Explica o sistema de ranks", inline=False)
+    defaultEmbed.add_field(name="p?help entrar", value="Explica o comando p?entrar", inline=False)
+    defaultEmbed.add_field(name="p?help rank", value="Explica a Leaderboard da semana.", inline=False)
+    defaultEmbed.add_field(name="p?help perfil", value="Explica o comando p?perfil", inline=False)
+    defaultEmbed.add_field(name="p?help ligas", value="Explica o comando p?ligas e o sistema de Ligas", inline=False)
+
+    entrarEmbed = discord.Embed(
+        name="p?entrar",
+        description = "Usado para ingressar na **Semana do Programador**, uma vez usado, não será mais necessário se inscrever."
+    )
+
+    rankEmbed = discord.Embed(
+        name="p?rank",
+        description="Usado para ver a Leaderboard da semana. A Leaderboard pode mudar conforme mais pessoas ingressam, caso essa pessoa tenha mais pontos que o resto, ela sobe, mesmo que haja um 1º lugar anteriormente."
+    )
+
+    perfilEmbed = discord.Embed(
+        name="p?perfil @usuario",
+        description="Usado para ver o perfil do usuário mencionado. (é necessário mencionar, mesmo que seja você mesmo)",
+    )
+
+    ranksEmbed = discord.Embed(
+        name="Sistema de Ranks",
+        description="O sistema de ranks permite destacar os programadores mais ativos do servidor e encoraja o desenvolvimento de projetos de programação!"
+    )
+
+    ligasEmbed = discord.Embed(
+        name="p?ligas | Sistema de Ligas",
+        description = "Diferente do Rank da **Semana do Programador**, a Liga é permanente e o programador mais resiliente irá se classificar aos elos mais altos."
+    )
+
     if comando == "":
-        pass
+        await ctx.send(embed = defaultEmbed)
     elif comando == "entrar":
-        pass
+        await ctx.send(embed = entrarEmbed)
     elif comando == "rank":
-        pass
+        await ctx.send(embed = rankEmbed)
     elif comando == "perfil":
-        pass
+        await ctx.send(embed = perfilEmbed)
+    elif comando == "ranks":
+        await ctx.send(embed = ranksEmbed)
+    elif comando == "ligas":
+        await ctx.send(embed = ligasEmbed)
     else:
-        pass
+        await ctx.send(embed = defaultEmbed)
 
 @client.command()
 async def checar(ctx):
     rankCheck()
+
+@client.command()
+async def ligas(ctx):
+    with open("players.json", encoding='utf-8') as p:
+        dataPlayer = json.load(p)
+
+    leagueRanks = {
+        "<:iniciante:854698137029836820>": [],
+        "<:amador:854698137607733268>": [],
+        "<:experiente:854698137934233630>": [],
+        "<:campeao:854698137653739550>": [],
+        "<:lenda:854698137691226112>": []
+    }
+
+    for player in dataPlayer:
+        if dataPlayer[player]['title'] == "Iniciante":
+            leagueRanks["<:iniciante:854698137029836820>"].append(dataPlayer[player]['discord'])
+        elif dataPlayer[player]['title'] == "Amador":
+            leagueRanks["<:amador:854698137607733268>"].append(dataPlayer[player]['discord'])
+        elif dataPlayer[player]['title'] == "Experiente":
+            leagueRanks["<:experiente:854698137934233630>"].append(dataPlayer[player]['discord'])
+        elif dataPlayer[player]['title'] == "Campeão":
+            leagueRanks["<:campeao:854698137653739550>"].append(dataPlayer[player]['discord'])
+        elif dataPlayer[player]['title'] == "Lenda":
+            leagueRanks["<:lenda:854698137691226112>"].append(dataPlayer[player]['discord'])
+
+    thisEmbed = discord.Embed(
+        name="Ligas da **Semana do Programador**",
+        description="Suba de liga e torne-se o melhor programador!"
+    )
+
+    if len(leagueRanks['<:lenda:854698137691226112>']) >= 1:
+        thisEmbed.add_field(name="<:lenda:854698137691226112> **Lenda**", value=", ".join(leagueRanks['<:lenda:854698137691226112>']), inline=False)
+    else:
+        thisEmbed.add_field(name="<:lenda:854698137691226112> **Lenda**", value='Não há jogadores nesta liga.', inline=False)
+
+    if len(leagueRanks['<:campeao:854698137653739550>']) >= 1:
+        thisEmbed.add_field(name="<:campeao:854698137653739550> **Campeão**", value=", ".join(leagueRanks['<:campeao:854698137653739550>']), inline=False)
+    else:
+        thisEmbed.add_field(name="<:campeao:854698137653739550> **Campeão**", value='Não há jogadores nesta liga.', inline=False)
+
+    if len(leagueRanks['<:experiente:854698137934233630>']) >= 1:
+        thisEmbed.add_field(name="<:experiente:854698137934233630> **Experiente**", value=", ".join(leagueRanks['<:experiente:854698137934233630>']), inline=False)
+    else:
+        thisEmbed.add_field(name="<:experiente:854698137934233630> **Experiente**", value='Não há jogadores nesta liga.', inline=False)
+
+    if len(leagueRanks['<:amador:854698137607733268>']) >= 1:
+        thisEmbed.add_field(name="<:amador:854698137607733268> **Amador**", value=", ".join(leagueRanks['<:amador:854698137607733268>']), inline=False)
+    else:
+        thisEmbed.add_field(name="<:amador:854698137607733268> **Amador**", value='Não há jogadores nesta liga.', inline=False)
+
+    if len(leagueRanks['<:iniciante:854698137029836820>']) >= 1:
+        thisEmbed.add_field(name="<:iniciante:854698137029836820> **Iniciante**", value=", ".join(leagueRanks['<:iniciante:854698137029836820>']), inline=False)
+    else:
+        thisEmbed.add_field(name="<:iniciante:854698137029836820> **Iniciante**", value='Não há jogadores nesta liga.', inline=False)
+    thisEmbed.set_footer(text="Preparado para subir de liga?")
+
+    await ctx.send(embed = thisEmbed)
 
 @client.command()
 async def dados(ctx):
@@ -155,20 +257,19 @@ async def dados(ctx):
         await ctx.send(embed = embed)
     else:
         alert = f"""
-:exclamation:<@{ctx.author.id}>, você não tem permissão para gerenciar este evento!:exclamation:
+:exclamation:<@{ctx.author.id}>, você não tem permissão para usar este comando!:exclamation:
 
-As pessoas que podem gerenciar meus eventos são: {', '.join(usersAllowedFormated)}
+As pessoas que podem visualizar meus dados são: {', '.join(usersAllowedFormated)}
         """
         await ctx.send(alert)
     
     d.close()
 
 @client.command()
-async def entrar(ctx, github="", who=""):
+async def entrar(ctx, github=""):
     with open("players.json", encoding='utf-8') as wp:
         dataPlayer = json.load(wp)
 
-    if who == "":
         who = ctx.author
     
     if github == "":
@@ -176,7 +277,7 @@ async def entrar(ctx, github="", who=""):
 :arrow_right: <@{ctx.author.id}>, para te inscrever na próxima **Semana do Programador**, vou precisar do seu usuário no Github!
 
 Uso correto deste comando:
-```p?entrar meuUsuarioNoGithub usuarioNoDiscord(opcional)```
+```p?entrar meuUsuarioNoGithub```
 """
         await ctx.send(alert)
         return
@@ -188,16 +289,16 @@ Uso correto deste comando:
 :arrow_right: <@{ctx.author.id}>, o usuário do Github informado não existe!
 
 Uso correto deste comando:
-```p?entrar meuUsuarioNoGithub usuarioNoDiscord(opcional)```
+```p?entrar meuUsuarioNoGithub```
 """
             await ctx.send(alert)
             return
     
     confirmed = f"""
-:partying_face: Parabéns! Você foi inscrito na próxima **Semana do Programador**, continue produzindo! Use `p?rank` para checar seu **rank**!.
+:partying_face: Parabéns! Você foi inscrito na próxima **Semana do Programador**, continue produzindo! Use p?rank para checar seu **rank**!.
 """
 
-    if str(who.id) in dataPlayer:
+    if who.id in dataPlayer:
         await ctx.send(":exclamation:Você já está inscrito na **Semana do Programador**!")
         return
     else:
@@ -224,9 +325,9 @@ Uso correto deste comando:
         wp.close()
         fp.close()
 
-        rankCheck()
-
         await ctx.send(confirmed)
+
+        rankCheck()
 
 @client.command()
 async def rank(ctx):
@@ -335,30 +436,61 @@ async def rankFinal(ctx):
     p.close()
 
 @client.command()
-async def perfil(ctx):
+async def perfil(ctx, user: discord.User):
     with open("players.json", 'r', encoding='utf-8') as d:
         data = json.load(d)
 
-    if str(ctx.author.id) in data:
-        embed = discord.Embed(
-            title = f"Dados de {ctx.author}",
-            description = "Alguns dados sobre você."
-        )
+    try:
+        if user == "" or user == " ":
+            user = ctx.author
 
-        embed.set_thumbnail(url=ctx.author.avatar_url)
+        if str(user.id) in data:
+            embed = discord.Embed(
+                title = f"{user} | {data[str(user.id)]['github']}",
+                description = g.get_user(data[str(user.id)]['github']).bio
+            )
 
-        embed.add_field(name='Github', value=data[str(ctx.author.id)]['github'], inline=False)
-        embed.add_field(name='Títulos', value=data[str(ctx.author.id)]['titles'], inline=False)
-        embed.add_field(name='Rank', value=data[str(ctx.author.id)]['title'], inline=False)
+            langs = {}
 
-        await ctx.send(embed = embed)
-    else:
-        await ctx.send("""
+            for repo in g.get_user(data[str(user.id)]['github']).get_repos():
+                if repo.language in langs:
+                    langs[repo.language] += repo.get_languages()[repo.language]
+                elif repo.language == None:
+                    pass
+                else:
+                    langs[repo.language] = repo.get_languages()[repo.language]
+            
+            mostUsed = sorted(langs.items(), reverse=True, key=lambda item: item[1])
+
+            embed.set_thumbnail(url=user.avatar_url)
+
+            embed.add_field(name='Github', value=data[str(user.id)]['github'], inline=True)
+            embed.add_field(name='Linguagem Favorita', value=mostUsed[0][0], inline=True)
+            embed.add_field(name='Títulos', value=data[str(user.id)]['titles'], inline=False)
+
+            if data[str(user.id)]['title'] == "Iniciante":
+                embed.add_field(name='Rank', value=f"<:iniciante:854698137029836820> {data[str(user.id)]['title']}", inline=False)
+            elif data[str(user.id)]['title'] == "Amador":
+                embed.add_field(name='Rank', value=f"<:amador:854698137607733268> {data[str(user.id)]['title']}", inline=False)
+            elif data[str(user.id)]['title'] == "Experiente":
+                embed.add_field(name='Rank', value=f"<:experiente:854698137934233630> {data[str(user.id)]['title']}", inline=False)
+            elif data[str(user.id)]['title'] == "Campeão":
+                embed.add_field(name='Rank', value=f"<:campeao:854698137653739550> {data[str(user.id)]['title']}", inline=False)
+            elif data[str(user.id)]['title'] == "Lenda":
+                embed.add_field(name='Rank', value=f"<:lenda:854698137691226112> {data[str(user.id)]['title']}", inline=False)
+
+            await ctx.send(embed = embed)
+
+            d.close()
+        else:
+            await ctx.send("""
 :confused: Você ainda não se inscreveu na Semana do Programador, que tal se inscrever agora?
 
 Se inscreva usando o comando:
-```p?entrar meuUsuarioNoGithub usuarioNoDiscord(opcional)```
-""")
+```p?entrar meuUsuarioNoGithub```
+    """)
+    except Exception:
+        raise
 
     d.close()
 
