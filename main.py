@@ -43,11 +43,12 @@ async def rankCheck():
             if dataPlayer[player]['hasVerifiedThisWeek'] == 0:
                 for repo in g.get_user(dataPlayer[player]['github']).get_repos():
                     try:
-                        if today.day - repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1].week.day == 0:
+                        last = repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1]
+                        
+                        if today.day == last.week.day+7:
                             rankFinal()
 
                         if repo.pushed_at.day <= today.day and repo.pushed_at.month == today.month and repo.pushed_at.year == today.year:
-                            last = repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1]
                             thisWeek = last
 
                             if last.additions == 0 and last.deletions == 0:
@@ -63,19 +64,21 @@ async def rankCheck():
                 data['pointRanking'][dataPlayer[player]['github']] = dataPlayer[player]['points']
             else: 
                 try:
-                    if today.day - repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1].week.day == 0:
+                    last = repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1]
+
+                    if today.day == last.week.day+7:
                         rankFinal()
 
                     if repo.updated_at.day == today.day and repo.updated_at.month == today.month and repo.updated_at.year == today.year and repo.updated_at.hour == today.hour and repo.updated_at.min == today.min and today.second - repo.updated_at.second <= 5:
-                        last = repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1]
-
                         if last.additions == 0 and last.deletions == 0:
                             pass
                         else:
                             dataPlayer[player]['points'] += abs(last.additions)
                             dataPlayer[player]['points'] += abs(last.deletions)
+                    else:
+                        pass
                 except:
-                    print(f"Não há adições recentes no repositório {repo.name}")
+                    print(f"O repositório {repo.name} do usuário {dataPlayer[player]['github']} não possui atualizações recentes.")
     except:
         print(f"O usuário {dataPlayer[player]['discord']} não existe, ou o usuário {dataPlayer[player]['github']} não existe.")
 
