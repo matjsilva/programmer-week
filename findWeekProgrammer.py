@@ -13,18 +13,23 @@ ranking = {}
     
 langs = {}
 
-for repo in g.get_user('matjsilva').get_repos():
-    if repo.language in langs:
-        langs[repo.language] += repo.get_languages()[repo.language]
-    elif repo.language == None:
-        pass
-    else:
-        print(f"Linguagens: {repo.get_languages()}")
-        langs[repo.language] = repo.get_languages()[repo.language]
-print(langs)
-mostUsed = sorted(langs.items(), reverse=True, key=lambda item: item[1])
+# for repo in g.get_user('matjsilva').get_repos():
+#     if repo.language in langs:
+#         langs[repo.language] += repo.get_languages()[repo.language]
+#     elif repo.language == None:
+#         pass
+#     else:
+#         print(f"Linguagens: {repo.get_languages()}")
+#         langs[repo.language] = repo.get_languages()[repo.language]
+# print(langs)
+# mostUsed = sorted(langs.items(), reverse=True, key=lambda item: item[1])
 
-print(mostUsed[0][0])
+for repo in g.get_user('matjsilva').get_repos():
+    if repo.updated_at.day == today.day and repo.updated_at.month == today.month and repo.updated_at.year == today.year and repo.updated_at.hour == today.hour and repo.updated_at.min == today.min and today.second - repo.updated_at.second <= 5:
+        print(repo.updated_at)
+    print(repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1].week.day+7)
+
+# print(mostUsed[0][0])
 
 def check():
     try:

@@ -1,7 +1,7 @@
 import discord, asyncio, os, json
 from discord import embeds
 from github import *
-from discord.ext import commands
+from discord.ext import commands, tasks
 from datetime import date, datetime
 
 client = commands.Bot(command_prefix = 'p?', case_insensitive=True, help_command=None)
@@ -16,16 +16,18 @@ with open("secrets.json") as s:
 
 weekProgrammer = ""
 thisWeek = None
+timeToNextCheck = 0
 
 g = Github(dataSecrets['github'])
 
 @client.event
 async def on_ready():
     print(f"[{datetime.today()}] {client.user.name} ligado! (id = {client.user.id})")
-    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Repositórios"))
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Repositórios [build: cloud]"))
     print("======-======\n")
 
-def rankCheck():
+@tasks.loop(seconds = 5)
+async def rankCheck():
     global weekProgrammer, thisWeek
 
     with open("data.json", 'r', encoding='utf-8') as d:
@@ -41,7 +43,7 @@ def rankCheck():
             if dataPlayer[player]['hasVerifiedThisWeek'] == 0:
                 for repo in g.get_user(dataPlayer[player]['github']).get_repos():
                     try:
-                        if today.day - repo.pushed_at.day == 0:
+                        if today.day - repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1].week.day == 0:
                             rankFinal()
 
                         if repo.pushed_at.day <= today.day and repo.pushed_at.month == today.month and repo.pushed_at.year == today.year:
@@ -60,7 +62,20 @@ def rankCheck():
                         continue
                 data['pointRanking'][dataPlayer[player]['github']] = dataPlayer[player]['points']
             else: 
-                pass
+                try:
+                    if today.day - repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1].week.day == 0:
+                        rankFinal()
+
+                    if repo.updated_at.day == today.day and repo.updated_at.month == today.month and repo.updated_at.year == today.year and repo.updated_at.hour == today.hour and repo.updated_at.min == today.min and today.second - repo.updated_at.second <= 5:
+                        last = repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1]
+
+                        if last.additions == 0 and last.deletions == 0:
+                            pass
+                        else:
+                            dataPlayer[player]['points'] += abs(last.additions)
+                            dataPlayer[player]['points'] += abs(last.deletions)
+                except:
+                    print(f"Não há adições recentes no repositório {repo.name}")
     except:
         print(f"O usuário {dataPlayer[player]['discord']} não existe, ou o usuário {dataPlayer[player]['github']} não existe.")
 
@@ -74,21 +89,6 @@ def rankCheck():
                     player = playerFix
 
             if dataPlayer[player]["hasVerifiedThisWeek"] == 0:
-                if i == 1:
-                    weekProgrammer = ranked 
-
-                    for playerFixToo in dataPlayer:
-                        if dataPlayer[playerFixToo]['github'] == ranked:
-                            dataPlayer[playerFixToo]['titles'] += 1
-
-                            if dataPlayer[playerFixToo]['titles'] in data['titles']['Amador']:
-                                dataPlayer[playerFixToo]['title'] = 'Amador'
-                            elif dataPlayer[playerFixToo]['titles'] in data['titles']['Experiente']:
-                                dataPlayer[playerFixToo]['title'] = 'Experiente'
-                            elif dataPlayer[playerFixToo]['titles'] in data['titles']['Campeão']:
-                                dataPlayer[playerFixToo]['title'] = 'Campeão'
-                            elif dataPlayer[playerFixToo]['titles'] > data['titles']['Lenda']:
-                                dataPlayer[playerFixToo]['title'] = 'Lenda'
                 data['ranking'][i] = dataPlayer[player]['github']
             dataPlayer[player]['hasVerifiedThisWeek'] = 1
             i += 1
@@ -110,7 +110,7 @@ async def ping(ctx):
 @client.command()
 async def help(ctx, comando=""):
     defaultEmbed = discord.Embed(
-        name="Ajuda **Semana do Programador**",
+        title="Ajuda **Semana do Programador**",
         description = "Lista de comandos do Bot!"
     )
     defaultEmbed.add_field(name="p?entrar", value="Use para entrar na **Semana do Programador**.", inline=False)
@@ -124,27 +124,27 @@ async def help(ctx, comando=""):
     defaultEmbed.add_field(name="p?help ligas", value="Explica o comando p?ligas e o sistema de Ligas", inline=False)
 
     entrarEmbed = discord.Embed(
-        name="p?entrar",
+        title="p?entrar",
         description = "Usado para ingressar na **Semana do Programador**, uma vez usado, não será mais necessário se inscrever."
     )
 
     rankEmbed = discord.Embed(
-        name="p?rank",
+        title="p?rank",
         description="Usado para ver a Leaderboard da semana. A Leaderboard pode mudar conforme mais pessoas ingressam, caso essa pessoa tenha mais pontos que o resto, ela sobe, mesmo que haja um 1º lugar anteriormente."
     )
 
     perfilEmbed = discord.Embed(
-        name="p?perfil @usuario",
+        title="p?perfil @usuario",
         description="Usado para ver o perfil do usuário mencionado. (é necessário mencionar, mesmo que seja você mesmo)",
     )
 
     ranksEmbed = discord.Embed(
-        name="Sistema de Ranks",
+        title="Sistema de Ranks",
         description="O sistema de ranks permite destacar os programadores mais ativos do servidor e encoraja o desenvolvimento de projetos de programação!"
     )
 
     ligasEmbed = discord.Embed(
-        name="p?ligas | Sistema de Ligas",
+        title="p?ligas | Sistema de Ligas",
         description = "Diferente do Rank da **Semana do Programador**, a Liga é permanente e o programador mais resiliente irá se classificar aos elos mais altos."
     )
 
@@ -165,7 +165,15 @@ async def help(ctx, comando=""):
 
 @client.command()
 async def checar(ctx):
-    rankCheck()
+    if ctx.author.id in usersAllowed:
+        rankCheck()
+    else:
+        alert = f"""
+:exclamation:<@{ctx.author.id}>, você não tem permissão para usar este comando!:exclamation:
+
+As pessoas que podem realizar uma checagem manual são: {', '.join(usersAllowedFormated)}
+        """
+        await ctx.send(alert)
 
 @client.command()
 async def ligas(ctx):
@@ -193,7 +201,7 @@ async def ligas(ctx):
             leagueRanks["<:lenda:854698137691226112>"].append(dataPlayer[player]['discord'])
 
     thisEmbed = discord.Embed(
-        name="Ligas da **Semana do Programador**",
+        title="Ligas da Semana do Programador",
         description="Suba de liga e torne-se o melhor programador!"
     )
 
@@ -252,6 +260,10 @@ async def dados(ctx):
 
             embed.add_field(name='Usuários Inscritos', value=', '.join(players), inline=False)
 
+        embed.add_field(name="Loop atual do rankCheck", value=rankCheck.current_loop, inline=False)
+        embed.add_field(name="Próximo loop do rankCheck", value=rankCheck.next_iteration, inline=False)
+        embed.add_field(name="Intervalo do loop (segundos)", value=rankCheck.seconds, inline=False)
+
         embed.set_thumbnail(url='https://i.pinimg.com/originals/0c/67/5a/0c675a8e1061478d2b7b21b330093444.gif')
 
         await ctx.send(embed = embed)
@@ -302,6 +314,11 @@ Uso correto deste comando:
         await ctx.send(":exclamation:Você já está inscrito na **Semana do Programador**!")
         return
     else:
+        for player in dataPlayer:
+            if dataPlayer[player]['github'] == github:
+                await ctx.send(f":exclamation:Você já está inscrito na **Semana do Programador**! => <@{player}> - {dataPlayer[player]['github']}")
+                return
+
         thisUserData = {
             "github": "github",
             "titles": 0,
@@ -327,8 +344,6 @@ Uso correto deste comando:
 
         await ctx.send(confirmed)
 
-        rankCheck()
-
 @client.command()
 async def rank(ctx):
     global thisWeek
@@ -345,11 +360,6 @@ async def rank(ctx):
         second = ""
         third = ""
 
-        embed = discord.Embed(
-            name=f"Leaderboard | Semana {thisWeek}",
-            description="Os programadores mais ativos do servidor costumam se destacar nessa lista."
-        )
-
         for player in dataPlayer:
             if dataPlayer[player]['github'] == data['ranking']['1']:
                 first = f"{player}"
@@ -357,6 +367,11 @@ async def rank(ctx):
                 second = f"{player}"
             elif dataPlayer[player]['github'] == data['ranking']['3']:
                 third = f"{player}"
+
+        embed = discord.Embed(
+            title=f"Leaderboard | Semana em andamento...",
+            description="Os programadores mais ativos do servidor costumam se destacar nessa lista."
+        )
             
         embed.add_field(name=f":first_place:Primeiro Lugar - {data['ranking']['1']} ({dataPlayer[first]['discord']})", value=f"Pontos: {data['pointRanking'][data['ranking']['1']]} | Títulos: {dataPlayer[first]['titles']}", inline=False)
         embed.add_field(name=f":second_place:Segundo Lugar - {data['ranking']['2']} ({dataPlayer[second]['discord']})", value=f"Pontos: {data['pointRanking'][data['ranking']['2']]} | Títulos: {dataPlayer[second]['titles']}", inline=False)
@@ -382,7 +397,7 @@ async def rank(ctx):
 async def rankFinal(ctx):
     global thisWeek
 
-    with open('data.json', 'r', encoding='utf-8') as d:
+    with open('data.json', encoding='utf-8') as d:
         data = json.load(d)
 
     with open('players.json', encoding='utf-8') as p:
@@ -395,8 +410,8 @@ async def rankFinal(ctx):
         third = ""
 
         embed = discord.Embed(
-            name=f"Leaderboard | Semana {thisWeek}",
-            description="Os programadores mais ativos do servidor costumam se destacar nessa lista."
+            title=f"Leaderboard | Programador da semana = {dataPlayer[first]['discord']}",
+            description=f"O grande ganhador desta **Semana do Programador** é {dataPlayer[first]['discord']}!"
         )
 
         for player in dataPlayer:
@@ -411,6 +426,16 @@ async def rankFinal(ctx):
         embed.add_field(name=f":second_place:Segundo Lugar - {data['ranking']['2']} ({dataPlayer[second]['discord']})", value=f"Pontos: {data['pointRanking'][data['ranking']['2']]} | Títulos: {dataPlayer[second]['titles']}", inline=False)
         embed.add_field(name=f":third_place:Terceiro Lugar - {data['ranking']['3']} ({dataPlayer[third]['discord']})", value=f"Pontos: {data['pointRanking'][data['ranking']['3']]} | Títulos: {dataPlayer[third]['titles']}", inline=False)
 
+        dataPlayer[first]['titles'] += 1
+        if dataPlayer[first]['titles'] in data['titles']['Amador']:
+            dataPlayer[first]['title'] = 'Amador'
+        elif dataPlayer[first]['titles'] in data['titles']['Experiente']:
+            dataPlayer[first]['title'] = 'Experiente'
+        elif dataPlayer[first]['titles'] in data['titles']['Campeão']:
+            dataPlayer[first]['title'] = 'Campeão'
+        elif dataPlayer[first]['titles'] > data['titles']['Lenda']:
+            dataPlayer[first]['title'] = 'Lenda'
+
         for ranked in data['ranking']:
             if ranked != "1" and ranked != "2" and ranked != "3":
                 others.append(data['ranking'][ranked])
@@ -423,9 +448,15 @@ async def rankFinal(ctx):
         for player in dataPlayer:
             dataPlayer[player]["hasVerifiedThisWeek"] = 0
             dataPlayer[player]["points"] = 0
+
+        data['ranking'] = {}
+        data['pointRanking'] = {}
         
         with open('players.json', encoding='utf-8') as wp:
             json.dump(dataPlayer, wp, indent=4)
+
+        with open('data.json', encoding='utf-8') as wd:
+            json.dump(data, wd, indent=4)
 
         await ctx.send("@everyone A **Semana do Programador** chegou ao fim! Aqui estão os 3 primeiros colocados da leaderboard:smiley:")
         await ctx.send(embed = embed)
@@ -451,7 +482,6 @@ async def perfil(ctx, user: discord.User):
             )
 
             langs = {}
-
             for repo in g.get_user(data[str(user.id)]['github']).get_repos():
                 if repo.language in langs:
                     langs[repo.language] += repo.get_languages()[repo.language]
@@ -494,5 +524,6 @@ Se inscreva usando o comando:
 
     d.close()
 
+rankCheck.start()
 client.run(dataSecrets['token'])
 s.close()
