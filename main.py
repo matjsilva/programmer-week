@@ -101,6 +101,65 @@ async def rankCheck():
     d.close()
     p.close()
 
+def manualRankCheck():
+    global weekProgrammer, thisWeek
+
+    with open("data.json", 'r', encoding='utf-8') as d:
+        data = json.load(d)
+
+    with open("players.json", 'r', encoding='utf-8') as p:
+        dataPlayer = json.load(p)
+
+    today = datetime.today()
+
+    try:
+        for player in dataPlayer:
+            for repo in g.get_user(dataPlayer[player]['github']).get_repos():
+                try:
+                    last = repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1]
+
+                    if last.week.day - today.day == 1 and today.hour == 20 and today.minute == 59:
+                        rankFinal()
+
+                    if repo.pushed_at.day <= today.day and repo.pushed_at.month == today.month and repo.pushed_at.year == today.year:
+                        if last.additions == 0 and last.deletions == 0:
+                            pass
+                        else:
+                            dataPlayer[player]['points'] = 0
+                            dataPlayer[player]['points'] += abs(last.additions)
+                            dataPlayer[player]['points'] += abs(last.deletions)
+                except RateLimitExceededException:
+                    print("Taxa limite da API excedida")
+                except:
+                    print(f"O repositório {repo.name} do usuário {dataPlayer[player]['github']} está vazio.")
+                    continue
+            data['pointRanking'][dataPlayer[player]['github']] = dataPlayer[player]['points']
+    except RateLimitExceededException:
+        print("Taxa limite da API excedida")
+    except:
+        print(f"O usuário {dataPlayer[player]['discord']} não existe, ou o usuário {dataPlayer[player]['github']} não existe.")
+
+    finalRanking = dict(sorted(data['pointRanking'].items(), reverse=True, key=lambda item: item[1]))
+    if len(data['pointRanking'].items()) >= 3:
+        i = 1
+
+        for ranked in finalRanking:
+            for playerFix in dataPlayer:
+                if dataPlayer[playerFix]['github'] == ranked:
+                    player = playerFix
+            data['ranking'][i] = dataPlayer[player]['github']
+            i += 1
+
+    with open('data.json', 'w', encoding='utf-8') as wd:
+        json.dump(data, wd, indent=4)
+    with open('players.json', 'w', encoding='utf-8') as wp:
+        json.dump(dataPlayer, wp, indent=4)
+
+    wd.close()
+    wp.close()
+    d.close()
+    p.close()
+
 @client.command()
 async def ping(ctx):
     await ctx.send("pong! :sunglasses:")
@@ -164,7 +223,7 @@ async def help(ctx, comando=""):
 @client.command()
 async def checar(ctx):
     if ctx.author.id in usersAllowed:
-        rankCheck()
+        manualRankCheck()
     else:
         alert = f"""
 :exclamation:<@{ctx.author.id}>, você não tem permissão para usar este comando!:exclamation:
@@ -347,7 +406,7 @@ Uso correto deste comando:
 
 @client.command()
 async def rank(ctx):
-    global thisWeek
+    manualRankCheck()
 
     with open('data.json', 'r', encoding='utf-8') as d:
         data = json.load(d)
