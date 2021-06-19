@@ -26,7 +26,7 @@ async def on_ready():
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Repositórios [build: cloud]"))
     print("======-======\n")
 
-@tasks.loop(seconds = 5)
+@tasks.loop(seconds = 10)
 async def rankCheck():
     global weekProgrammer, thisWeek
 
@@ -40,47 +40,24 @@ async def rankCheck():
 
     try:
         for player in dataPlayer:
-            if dataPlayer[player]['hasVerifiedThisWeek'] == 0:
-                for repo in g.get_user(dataPlayer[player]['github']).get_repos():
-                    try:
-                        last = repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1]
-                        
-                        if today.day == last.week.day+7:
-                            rankFinal()
+            for repo in g.get_user(dataPlayer[player]['github']).get_repos():
+                try:
+                    last = repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1]
 
-                        if repo.pushed_at.day <= today.day and repo.pushed_at.month == today.month and repo.pushed_at.year == today.year:
-                            thisWeek = last
+                    if today.day - last.week.day == 0:
+                        rankFinal()
 
-                            if last.additions == 0 and last.deletions == 0:
-                                pass
-                            else:
-                                dataPlayer[player]['points'] += abs(last.additions)
-                                dataPlayer[player]['points'] += abs(last.deletions)
-                        else:
+                    if repo.pushed_at.day <= today.day and repo.pushed_at.month == today.month and repo.pushed_at.year == today.year:
+                        if last.additions == 0 and last.deletions == 0:
                             pass
-                    except:
-                        print(f"O repositório {repo.name} do usuário {dataPlayer[player]['github']} está vazio.")
-                        continue
-                data['pointRanking'][dataPlayer[player]['github']] = dataPlayer[player]['points']
-            else:
-                for repo in g.get_user(dataPlayer[player]['github']).get_repos(): 
-                    try:
-                        last = repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1]
-
-                        if today.day == last.week.day+7:
-                            rankFinal()
-
-                        if repo.updated_at.day == today.day and repo.updated_at.month == today.month and repo.updated_at.year == today.year and repo.updated_at.hour == today.hour and repo.updated_at.min == today.min and today.second - repo.updated_at.second <= 5:
-                            if last.additions == 0 and last.deletions == 0:
-                                pass
-                            else:
-                                dataPlayer[player]['points'] += abs(last.additions)
-                                dataPlayer[player]['points'] += abs(last.deletions)
                         else:
-                            pass
-                    except:
-                        print(f"O repositório {repo.name} do usuário {dataPlayer[player]['github']} não possui atualizações recentes.")
-                data['pointRanking'][dataPlayer[player]['github']] = dataPlayer[player]['points']
+                            dataPlayer[player]['points'] = 0
+                            dataPlayer[player]['points'] += abs(last.additions)
+                            dataPlayer[player]['points'] += abs(last.deletions)
+                except:
+                    print(f"O repositório {repo.name} do usuário {dataPlayer[player]['github']} está vazio.")
+                    continue
+            data['pointRanking'][dataPlayer[player]['github']] = dataPlayer[player]['points']
     except:
         print(f"O usuário {dataPlayer[player]['discord']} não existe, ou o usuário {dataPlayer[player]['github']} não existe.")
 
@@ -92,10 +69,7 @@ async def rankCheck():
             for playerFix in dataPlayer:
                 if dataPlayer[playerFix]['github'] == ranked:
                     player = playerFix
-
-            if dataPlayer[player]["hasVerifiedThisWeek"] == 0:
-                data['ranking'][i] = dataPlayer[player]['github']
-            dataPlayer[player]['hasVerifiedThisWeek'] = 1
+            data['ranking'][i] = dataPlayer[player]['github']
             i += 1
 
     with open('data.json', 'w', encoding='utf-8') as wd:
