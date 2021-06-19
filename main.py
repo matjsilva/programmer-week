@@ -26,7 +26,7 @@ async def on_ready():
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Repositórios [build: cloud]"))
     print("======-======\n")
 
-@tasks.loop(seconds = 10)
+@tasks.loop(minutes = 30)
 async def rankCheck():
     global weekProgrammer, thisWeek
 
@@ -37,6 +37,7 @@ async def rankCheck():
         dataPlayer = json.load(p)
 
     today = datetime.today()
+    channel = client.get_channel(854361083572912158)
 
     try:
         for player in dataPlayer:
@@ -44,7 +45,7 @@ async def rankCheck():
                 try:
                     last = repo.get_stats_code_frequency()[len(repo.get_stats_code_frequency())-1]
 
-                    if today.day - last.week.day == 0:
+                    if last.week.day - today.day == 1 and today.hour == 20 and today.minute == 59:
                         rankFinal()
 
                     if repo.pushed_at.day <= today.day and repo.pushed_at.month == today.month and repo.pushed_at.year == today.year:
@@ -54,10 +55,28 @@ async def rankCheck():
                             dataPlayer[player]['points'] = 0
                             dataPlayer[player]['points'] += abs(last.additions)
                             dataPlayer[player]['points'] += abs(last.deletions)
+                except RateLimitExceededException:
+                    print("Taxa limite da API excedida")
+
+                    embed = discord.Embed(
+                        title = ":confused: Estamos tendo problemas com a API do Github",
+                        description = "No momento atingimos a taxa de requests total à API do Github, aguarde um pouco e logo estaremos de volta."
+                    )
+
+                    await channel.send(embed = embed)
                 except:
                     print(f"O repositório {repo.name} do usuário {dataPlayer[player]['github']} está vazio.")
                     continue
             data['pointRanking'][dataPlayer[player]['github']] = dataPlayer[player]['points']
+    except RateLimitExceededException:
+        print("Taxa limite da API excedida")
+
+        embed = discord.Embed(
+            title = ":confused: Estamos tendo problemas com a API do Github",
+            description = "No momento atingimos a taxa de requests total à API do Github, aguarde um pouco e logo estaremos de volta."
+        )
+
+        await channel.send(embed = embed)
     except:
         print(f"O usuário {dataPlayer[player]['discord']} não existe, ou o usuário {dataPlayer[player]['github']} não existe.")
 
@@ -275,6 +294,11 @@ Uso correto deste comando:
     else:
         try:
             g.get_user(github)
+        except RateLimitExceededException:
+            embed = discord.Embed(
+                title = ":confused: Estamos tendo problemas com a API do Github",
+                description = "No momento atingimos a taxa de requests total à API do Github, aguarde um pouco e logo estaremos de volta."
+            )
         except:
             alert = f"""
 :arrow_right: <@{ctx.author.id}>, o usuário do Github informado não existe!
@@ -303,15 +327,13 @@ Uso correto deste comando:
             "titles": 0,
             "title": "Iniciante",
             "points": 0,
-            "discord": "",
-            "hasVerifiedThisWeek": 0
+            "discord": ""
         }
 
         thisUserData['github'] = github
         thisUserData['titles'] = 0
         thisUserData['title'] = "Iniciante"
         thisUserData['discord'] = str(ctx.author)
-        thisUserData['hasVerifiedThisWeek'] = 0
 
         dataPlayer[who.id] = thisUserData
 
@@ -366,8 +388,16 @@ async def rank(ctx):
         embed.set_footer(text="Os 3 programadores mais ativos da semana!")
 
         await ctx.send(embed = embed)
+    except RateLimitExceededException:
+        embed = discord.Embed(
+            title = ":confused: Estamos tendo problemas com a API do Github",
+            description = "No momento atingimos a taxa de requests total à API do Github, aguarde um pouco e logo estaremos de volta."
+        )
+
+        await ctx.send(embed = embed)
     except:
         await ctx.send(":hourglass: Os resultados ainda estão sendo computados, ou não há jogadores o suficiente para preencher a leaderboard, aguarde mais um pouco!")
+        
 
     d.close()
     p.close()
@@ -425,7 +455,6 @@ async def rankFinal(ctx):
         embed.set_footer(text="Os 3 programadores mais ativos da semana!")
 
         for player in dataPlayer:
-            dataPlayer[player]["hasVerifiedThisWeek"] = 0
             dataPlayer[player]["points"] = 0
 
         data['ranking'] = {}
@@ -439,6 +468,11 @@ async def rankFinal(ctx):
 
         await ctx.send("@everyone A **Semana do Programador** chegou ao fim! Aqui estão os 3 primeiros colocados da leaderboard:smiley:")
         await ctx.send(embed = embed)
+    except RateLimitExceededException:
+        embed = discord.Embed(
+            title = ":confused: Estamos tendo problemas com a API do Github",
+            description = "No momento atingimos a taxa de requests total à API do Github, aguarde um pouco e logo estaremos de volta."
+        )
     except:
         await ctx.send(":confused:Não tivemos programadores o suficiente para organizar uma leaderboard esta semana, que tal compartilhar a **Semana do Programador** para um amigo?")
 
@@ -476,6 +510,7 @@ async def perfil(ctx, user: discord.User):
             embed.add_field(name='Github', value=data[str(user.id)]['github'], inline=True)
             embed.add_field(name='Linguagem Favorita', value=mostUsed[0][0], inline=True)
             embed.add_field(name='Títulos', value=data[str(user.id)]['titles'], inline=False)
+            embed.add_field(name='Pontos', value=data[str(user.id)]['points'], inline=True)
 
             if data[str(user.id)]['title'] == "Iniciante":
                 embed.add_field(name='Rank', value=f"<:iniciante:854698137029836820> {data[str(user.id)]['title']}", inline=False)
@@ -498,8 +533,13 @@ async def perfil(ctx, user: discord.User):
 Se inscreva usando o comando:
 ```p?entrar meuUsuarioNoGithub```
     """)
-    except Exception:
-        raise
+    except RateLimitExceededException:
+        errorEmbed = discord.Embed(
+            title = ":confused: Estamos tendo problemas com a API do Github",
+            description = "No momento atingimos a taxa de requests total à API do Github, aguarde um pouco e logo estaremos de volta."
+        )
+
+        await ctx.send(embed = errorEmbed)
 
     d.close()
 
